@@ -1,0 +1,176 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Nik's keezer temperature</title>
+    <link href="layout.css" rel="stylesheet" type="text/css">
+    <!--[if lte IE 8]><script language="javascript" type="text/javascript" src="../excanvas.min.js"></script><![endif]-->
+    <script language="javascript" type="text/javascript" src="./jquery.js"></script>
+    <script language="javascript" type="text/javascript" src="./jquery.flot.js"></script>
+ </head>
+    <body>
+    <h1>Keezer Temperature</h1>
+
+    <div id="placeholder" style="width:575px;height:350px;"></div>
+
+<script type="text/javascript">
+$(function () {
+
+	//**************************************
+	// USER CONFIGURATION VARIABLES
+	//**************************************
+	
+	updateInterval = 5;			// In seconds
+	dataElementsLimit = 720;	// # data elements, taken every 30 seconds
+	cycleOnColor = "#cccccc";
+	lineColor = "blue";
+	tempSettingColor = "#cccccc";
+
+	// to be implemented
+	// downsampling to sample limit from elements limit
+	dataSampleLimit = 500;
+	
+	//**************************************
+	
+	out = [];
+	outSetting = [];
+	onCycles = [];
+	markingArr = [];
+	mostRecent = 1000;	
+	updateInterval = updateInterval * 1000;		// Adjust to ms
+
+	function onFirstReceived(series) {
+		size = series.length;
+		i = 0;
+		pair = 0;
+		cycle = []
+		while (size > 0) {
+			// Convert time in s to ms, also subtract 8 hours
+			// to show PST instead of UTC
+			out.push([ (series[size-1][2] - 28800) * 1000, series[size-1][0]]);
+			outSetting.push([ (series[size-1][2] - 28800) * 1000, series[size-1][1]]);
+
+			if((series[size-1][3] == "On") && (pair == 0)) {
+				cycle.push( (series[size-1][2] - 28800) * 1000 )		// Cycle start time
+				pair = 1;
+			}
+			if((series[size-1][3] == "Off") && (pair == 1)) {
+				cycle.push( (series[size][2] - 28800) * 1000 )		// Cycle end time
+				onCycles.push( cycle )
+				cycle = []
+				pair = 0;
+			}
+			size--;
+		}
+		// If the last cycle never ended, then make it end at last (newest) data point
+		if(onCycles.length > 0) {
+			if(onCycles[onCycles.length - 1].length == 1) {
+				onCycles[onCycles.length - 1].push( series[ 0 ][2] );
+			}
+		}
+		markingArr = expandMarkings(onCycles);
+		$.plot($("#placeholder"), 
+		[{ 	data: outSetting,
+			color: tempSettingColor
+		},
+		{ 	data: out,
+			color: lineColor
+		}],
+		{
+			xaxis: {
+				mode: "time"
+			},
+			yaxis: {
+				min: 20,
+				max: 70
+			},
+			grid: {
+				markings: markingArr
+			}
+		});
+
+		// Check the most recent data so we don't grab redundant data later
+		size = out.length;
+		mostRecent = out[size-1][0] / 1000 + 28800;
+	}
+
+	$.ajax({
+	        url: "pullalltemps.py?limit=" + dataElementsLimit.toString(),
+	        method: 'GET',
+	        dataType: 'json',
+	        success: onFirstReceived
+	});
+        
+  function fetchData() {
+		function onDataReceived(series) {
+			size = series.length;
+
+			while (size > 0) {
+				// Convert time in s to ms, also subtract 8 hours
+				// to show PST instead of UTC
+				out.push([ (series[size-1][2] - 28800) * 1000, series[size-1][0]]);
+				outSetting.push([ (series[size-1][2] - 28800) * 1000, series[size-1][1]]);
+				if(out.length > dataElementsLimit) {
+					out.shift();	// Remove last old element to make room
+					outSetting.shift();	// Remove last old element to make room
+				}				
+				size--;
+			};
+
+			$.plot($("#placeholder"), 
+			[{ 	data: outSetting,
+				color: tempSettingColor
+			},
+			{ 	data: out,
+				color: lineColor
+			}],
+			{
+				xaxis: {
+					mode: "time"
+				},
+				yaxis: {
+					min: 20,
+					max: 70
+				},
+				grid: {
+					markings: markingArr
+				}
+			});
+
+			// Check the most recent data so we don't grab redundant data later
+			// May stay unchanged if there was no new data this go around
+			size = out.length;
+			mostRecent = out[size-1][0] / 1000 + 28800;
+		}
+		output = "updatetemps.py?last=" + mostRecent.toString();
+
+		$.ajax({
+		url: output,
+		method: 'GET',
+		dataType: 'json',
+		success: onDataReceived
+		});
+		setTimeout(fetchData, updateInterval);
+        }
+		
+	function expandMarkings( cycles ) {
+		size = cycles.length;
+		i = 0;
+		markings = []
+		while(i < size) {
+			markings.push( { xaxis: { from: cycles[i][0], to: cycles[i][1] }, color: cycleOnColor } );
+			i++;
+		}
+		return markings;
+	}
+	
+	setTimeout(fetchData, updateInterval);
+   
+});
+</script>
+
+
+ </body>
+</html>
+

@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Nik's keezer temperature</title>
+    <link href="layout.css" rel="stylesheet" type="text/css">
+    <!--[if lte IE 8]><script language="javascript" type="text/javascript" src="../excanvas.min.js"></script><![endif]-->
+    <script language="javascript" type="text/javascript" src="./jquery.js"></script>
+    <script language="javascript" type="text/javascript" src="./jquery.flot.js"></script>
+ </head>
+    <body>
+    <h1>Keezer Temperature</h1>
+
+    <div id="placeholder" style="width:575px;height:350px;"></div>
+
+<script type="text/javascript">
+$(function () {
+
+        out = [];
+	mostRecent = 200000000000;
+	
+	// Data sample limit in seconds
+	//	Quick reference:
+	//	1 day:   86400
+	//	12 hrs:  43200
+	//	1 hour:  3600
+	//	5 min:   300
+	dataElementsLimit = 600;		// Number of data elements to request
+
+	// to be implemented
+	// downsampling to sample limit from elements limit
+	dataSampleLimit = 500;
+
+	function onFirstReceived(series) {
+		size = series.length;
+		i = 0;
+		while (size > 0) {
+			// Convert time in s to ms, also subtract 8 hours
+			// to show PST instead of UTC
+			out.push([ (series[size-1][2] - 28800) * 1000, series[size-1][0]]);
+			size--;
+		};
+		$.plot($("#placeholder"), 
+		[{ 	data: out,
+			color: 'blue'
+		}], {xaxis: {mode: "time"}} );
+
+		// Check the most recent data so we don't grab redundant data later
+		size = out.length;
+		mostRecent = out[size-1][0] / 1000 + 28800;
+	}
+
+	$.ajax({
+	        url: "pullalltemps.py?limit=" + dataElementsLimit.toString(),
+	        method: 'GET',
+	        dataType: 'json',
+	        success: onFirstReceived
+	});
+        
+        function fetchData() {
+		function onDataReceived(series) {
+			size = series.length;
+
+			while (size > 0) {
+				// Convert time in s to ms, also subtract 8 hours
+				// to show PST instead of UTC
+				out.push([ (series[size-1][2] - 28800) * 1000, series[size-1][0]]);
+				out.shift();	// Remove last old element to make room
+				size--;
+			};
+
+			$.plot($("#placeholder"), 
+			[{ 	data: out,
+				color: 'blue'
+			}], {xaxis: {mode: "time"}} );
+
+			// Check the most recent data so we don't grab redundant data later
+			// May stay unchanged if there was no new data this go around
+			size = out.length;
+			mostRecent = out[size-1][0] / 1000 + 28800;
+		}
+		output = "updatetemps.py?last=" + mostRecent.toString();
+
+		$.ajax({
+		url: output,
+		method: 'GET',
+		dataType: 'json',
+		success: onDataReceived
+		});
+		setTimeout(fetchData, 1000);
+        }
+	
+	setTimeout(fetchData, 1000);
+   
+});
+</script>
+
+
+ </body>
+</html>
+

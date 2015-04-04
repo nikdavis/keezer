@@ -1,0 +1,23 @@
+temp controller...
+
+arduino pinout:
+
+DISP_PWM_PIN 10 -- PB2
+MENU_PIN 2 -- PD2
+UP_PIN 9 -- PB1
+DOWN_PIN 8 -- PB0
+RELAY_PIN 13 -- PB5
+TENS_FET 12 -- PB4
+ONES_FET 11 -- PB3
+(driven high, duh)
+TEMP_SENSOR 3 -- PD3
+
+BCD PINS
+
+B0 -> 4 -- PD4
+B1 -> 5 -- PD5
+B2 -> 6 -- PD6
+B3 -> 7 -- PD7
+
+CHANGED RELAY PIN so programming won't interfere
+NEW RELAY PIN -- PC3

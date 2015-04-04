@@ -1,0 +1,19 @@
+Updates to keezer pending:
+
+Arduino:
+	Allow temperature to be changed externally via Serial
+	Add error handling (needs to be robust)
+	Use float to make decisions instead of integer
+	Make limits adaptive (best way?)
+
+Web:
+	Allow temperature update
+	Make more interactive:
+		Zoom
+		Tooltips
+		Calculations
+
+Hardware/physical:
+	Solder together real model, put in box
+	Find proper final mount for temperature sensor
+	Steel/aluminum tube, food safe glue (silicon sealant, stainless steal)
