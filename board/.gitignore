@@ -1,0 +1,6 @@
+# Altium stuff
+*.LOG
+*.OutJob
+*.Zip
+__Previews
+Project\ Logs\ for\ temp_controller
